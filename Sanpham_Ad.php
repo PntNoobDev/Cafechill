@@ -1,4 +1,5 @@
 <?php
+
 session_start();
 if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['QuanLy', 'NhanVien'])) {
     header('Location: login_admin.php');
@@ -109,7 +110,7 @@ try {
         <div class="sidebar-wrapper scrollbar scrollbar-inner">
           <div class="sidebar-content">
             <ul class="nav nav-secondary">
-              <li class="nav-item active">
+              <li class="nav-item ">
                 <a
                   data-bs-toggle="collapse"
                   href="#dashboard"
@@ -122,13 +123,14 @@ try {
                 </a>
                 
               </li>
+              
               <li class="nav-section">
                 <span class="sidebar-mini-icon">
                   <i class="fa fa-ellipsis-h"></i>
                 </span>
                 <h4 class="text-section">Chức Năng Admin</h4>
               </li>
-              <li class="nav-item">
+              <li class="nav-item active">
                 <!-- Các chức năng của admin -->
                 <a data-bs-toggle="collapse" href="#base">
                   <i class="fas fa-layer-group"></i>
@@ -142,11 +144,16 @@ try {
                         <span class="sub-item">Chức Năng Của Sản Phẩm</span>
                       </a>
                     </li>
+                    <li>
+                      <a href="/Sanpham_DaXoa.php">
+                        <span class="sub-item">Các Sản Phẩm Đã Xóa</span>
+                      </a>
+                    </li>
 
                   </ul>
                 </div>
               </li>
-              <li class="nav-item">
+              <li class="nav-item ">
                 <a data-bs-toggle="collapse" href="#sidebarLayouts">
                   <i class="fas fa-th-list"></i>
                   <p>Hóa Đơn</p>
@@ -155,7 +162,7 @@ try {
                 <div class="collapse" id="sidebarLayouts">
                   <ul class="nav nav-collapse">
                     <li>
-                      <a href="">
+                      <a href="/Quanlidonhang_ad.php">
                         <span class="sub-item">Đơn Hàng Đang Xử Lí</span>
                       </a>
                     </li>
@@ -407,6 +414,12 @@ try {
              
             </div>
             <div class="container mt-4">
+            <?php if (isset($_SESSION['message'])) : ?>
+            <div class="alert alert-success" role="alert">
+              <?= $_SESSION['message'] ?>
+            </div>
+            <?php unset($_SESSION['message']); ?>
+          <?php endif; ?>
             <h1>Danh sách sản phẩm</h1>
             <!-- THÊM SẢN PHẨM -->
             <div class="add_wrapper my-3">
@@ -551,5 +564,6 @@ try {
         fillColor: "rgba(255, 165, 52, .14)",
       });
     </script>
+   
   </body>
 </html>

@@ -40,9 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['user_id'] = $user['AccountID'];
                     $_SESSION['username'] = $user['UserName'];
                     $_SESSION['role'] = $user['Role'];
-                    echo $_SESSION['user_id'];
                     header('Location: home.php');
-
                     exit();
                 } else {
                     // Mật khẩu sai
@@ -75,6 +73,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             unset($_SESSION['error_message']); // Xóa thông báo sau khi hiển thị
         }
         ?>
+        <?php if ($error): ?>
+            <p style="color:red;"><?php echo htmlspecialchars($error); ?></p>
+        <?php endif; ?>
         <form method="POST" action="">
             <input type="text" name="username" class="input-field" placeholder="Tên đăng nhập" required>
             <input type="password" name="password" class="input-field" placeholder="Mật khẩu" required>

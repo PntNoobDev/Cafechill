@@ -1,13 +1,67 @@
 <?php
 session_start();
-if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['QuanLy', 'NhanVien'])) {
-    header('Location: login_admin.php');
+require 'db_config.php'; // Kết nối CSDL
+
+// Kiểm tra vai trò quản lý
+if ($_SESSION['role'] !== 'QuanLy') {
+    header('Location: index.php');
     exit();
 }
 
-// Phân quyền
-$isManager = ($_SESSION['role'] === 'QuanLy');
+// Cập nhật trạng thái đơn hàng nếu có yêu cầu POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['DatHangID'], $_POST['TrangThai'])) {
+    $DatHangID = $_POST['DatHangID'];
+    $TrangThai = $_POST['TrangThai'];
+
+    // Chỉ cho phép các trạng thái hợp lệ
+    $validStatuses = ['DangXuLy', 'DangGiao', 'HoanThanh', 'Huy'];
+    if (in_array($TrangThai, $validStatuses)) {
+        $updateQuery = "UPDATE DatHang SET TrangThai = :TrangThai WHERE DatHangID = :DatHangID";
+        $stmt = $conn->prepare($updateQuery);
+        $stmt->bindParam(':TrangThai', $TrangThai);
+        $stmt->bindParam(':DatHangID', $DatHangID);
+        $stmt->execute();
+        $successMessage = "Cập nhật trạng thái thành công!";
+    } else {
+        $errorMessage = "Trạng thái không hợp lệ!";
+    }
+}
+
+// Lấy dữ liệu từ bảng DatHang và Accounts
+$query = "
+SELECT 
+    DatHang.DatHangID,
+    DatHang.AccountID,
+    DatHang.NgayDat,
+    DatHang.TrangThai,
+    DatHang.TongTien,
+    Accounts.UserName,
+    Accounts.FullName,
+    Accounts.Email
+FROM 
+    DatHang
+JOIN 
+    Accounts ON DatHang.AccountID = Accounts.AccountID
+";
+$stmt = $conn->prepare($query);
+$stmt->execute();
+$orderDetails = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Phân trang
+$productsPerPage = 6;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$offset = ($page - 1) * $productsPerPage;
+
+$queryCount = "SELECT COUNT(*) AS Total FROM DatHang";
+$stmt = $conn->prepare($queryCount);
+$stmt->execute();
+$totalProducts = $stmt->fetch(PDO::FETCH_ASSOC)['Total'];
+$totalPages = ceil($totalProducts / $productsPerPage);
+
+$previousPage = max(1, $page - 1);
+$nextPage = min($totalPages, $page + 1);
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -49,7 +103,8 @@ $isManager = ($_SESSION['role'] === 'QuanLy');
     <link rel="stylesheet" href="assets/css/kaiadmin.min.css" />
 
     <!-- CSS Just for demo purpose, don't include it in your project -->
-    <link rel="stylesheet" href="assets/css/demo.css" />
+    <link rel="stylesheet" href="assets/css/demo.css"/>
+    <link rel="stylesheet" href="/css/quanlidonhang.css"/>
   </head>
   <body>
     <div class="wrapper">
@@ -83,7 +138,7 @@ $isManager = ($_SESSION['role'] === 'QuanLy');
         <div class="sidebar-wrapper scrollbar scrollbar-inner">
           <div class="sidebar-content">
             <ul class="nav nav-secondary">
-              <li class="nav-item active">
+              <li class="nav-item ">
                 <a
                   data-bs-toggle="collapse"
                   href="#dashboard"
@@ -96,13 +151,14 @@ $isManager = ($_SESSION['role'] === 'QuanLy');
                 </a>
                 
               </li>
+              
               <li class="nav-section">
                 <span class="sidebar-mini-icon">
                   <i class="fa fa-ellipsis-h"></i>
                 </span>
                 <h4 class="text-section">Chức Năng Admin</h4>
               </li>
-              <li class="nav-item">
+              <li class="nav-item ">
                 <!-- Các chức năng của admin -->
                 <a data-bs-toggle="collapse" href="#base">
                   <i class="fas fa-layer-group"></i>
@@ -121,10 +177,11 @@ $isManager = ($_SESSION['role'] === 'QuanLy');
                         <span class="sub-item">Các Sản Phẩm Đã Xóa</span>
                       </a>
                     </li>
+
                   </ul>
                 </div>
               </li>
-              <li class="nav-item">
+              <li class="nav-item active">
                 <a data-bs-toggle="collapse" href="#sidebarLayouts">
                   <i class="fas fa-th-list"></i>
                   <p>Hóa Đơn</p>
@@ -372,181 +429,78 @@ $isManager = ($_SESSION['role'] === 'QuanLy');
           </nav>
           <!-- End Navbar -->
         </div>
-
+      <!-- ///////////////////////////////////////////////////// -->
+        <!-- Chức năng sản phẩm -->
         <div class="container">
           <div class="page-inner">
             <div
-              class="d-flex align-items-left align-items-md-center flex-column flex-md-row pt-2 pb-4"
-            >
+              class="d-flex align-items-left align-items-md-center flex-column flex-md-row pt-2 pb-4">
               <div>
                 <h3 class="fw-bold mb-3">Dashboard</h3>
                 <h6 class="op-7 mb-2"></h6>
-              </div>
+            </div>
              
             </div>
-            <div class="row">
-              <div class="col-sm-6 col-md-3">
-                <div class="card card-stats card-round">
-                  <div class="card-body">
-                    <div class="row align-items-center">
-                      <div class="col-icon">
-                        <div
-                          class="icon-big text-center icon-primary bubble-shadow-small"
-                        >
-                          <i class="fas fa-users"></i>
-                        </div>
-                      </div>
-                      <div class="col col-stats ms-3 ms-sm-0">
-                        <div class="numbers">
-                          <p class="card-category">Visitors</p>
-                          <h4 class="card-title">1,294</h4>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-sm-6 col-md-3">
-                <div class="card card-stats card-round">
-                  <div class="card-body">
-                    <div class="row align-items-center">
-                      <div class="col-icon">
-                        <div
-                          class="icon-big text-center icon-info bubble-shadow-small"
-                        >
-                          <i class="fas fa-user-check"></i>
-                        </div>
-                      </div>
-                      <div class="col col-stats ms-3 ms-sm-0">
-                        <div class="numbers">
-                          <p class="card-category">Subscribers</p>
-                          <h4 class="card-title">1303</h4>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-sm-6 col-md-3">
-                <div class="card card-stats card-round">
-                  <div class="card-body">
-                    <div class="row align-items-center">
-                      <div class="col-icon">
-                        <div
-                          class="icon-big text-center icon-success bubble-shadow-small"
-                        >
-                          <i class="fas fa-luggage-cart"></i>
-                        </div>
-                      </div>
-                      <div class="col col-stats ms-3 ms-sm-0">
-                        <div class="numbers">
-                          <p class="card-category">Sales</p>
-                          <h4 class="card-title">$ 1,345</h4>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-sm-6 col-md-3">
-                <div class="card card-stats card-round">
-                  <div class="card-body">
-                    <div class="row align-items-center">
-                      <div class="col-icon">
-                        <div
-                          class="icon-big text-center icon-secondary bubble-shadow-small"
-                        >
-                          <i class="far fa-check-circle"></i>
-                        </div>
-                      </div>
-                      <div class="col col-stats ms-3 ms-sm-0">
-                        <div class="numbers">
-                          <p class="card-category">Order</p>
-                          <h4 class="card-title">576</h4>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div class="container mt-4">
+            <?php if (isset($_SESSION['message'])) : ?>
+            <div class="alert alert-success" role="alert">
+              <?= $_SESSION['message'] ?>
             </div>
-            <div class="row">
-              <div class="col-md-8">
-                <div class="card card-round">
-                  <div class="card-header">
-                    <div class="card-head-row">
-                      <div class="card-title">User Statistics</div>
-                      <div class="card-tools">
-                        <a
-                          href="#"
-                          class="btn btn-label-success btn-round btn-sm me-2"
-                        >
-                          <span class="btn-label">
-                            <i class="fa fa-pencil"></i>
-                          </span>
-                          Export
-                        </a>
-                        <a href="#" class="btn btn-label-info btn-round btn-sm">
-                          <span class="btn-label">
-                            <i class="fa fa-print"></i>
-                          </span>
-                          Print
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="card-body">
-                    <div class="chart-container" style="min-height: 375px">
-                      <canvas id="statisticsChart"></canvas>
-                    </div>
-                    <div id="myChartLegend"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="card card-primary card-round">
-                  <div class="card-header">
-                    <div class="card-head-row">
-                      <div class="card-title">Daily Sales</div>
-                      <div class="card-tools">
-                        <div class="dropdown">
-                          <button
-                            class="btn btn-sm btn-label-light dropdown-toggle"
-                            type="button"
-                            id="dropdownMenuButton"
-                            data-bs-toggle="dropdown"
-                            aria-haspopup="true"
-                            aria-expanded="false"
-                          >
-                            Export
-                          </button>
-                          <div
-                            class="dropdown-menu"
-                            aria-labelledby="dropdownMenuButton"
-                          >
-                            <a class="dropdown-item" href="#">Action</a>
-                            <a class="dropdown-item" href="#">Another action</a>
-                            <a class="dropdown-item" href="#"
-                              >Something else here</a
-                            >
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="card-category">March 25 - April 02</div>
-                  </div>
-                  <div class="card-body pb-0">  
-                    <div class="mb-4 mt-2">
-                      <h1>$4,578.58</h1>
-                    </div>
-                    <div class="pull-in">
-                      <canvas id="dailySalesChart"></canvas>
-                    </div>
-                  </div>
-                </div>
-             
-              </div>
-            </div>
+            <?php unset($_SESSION['message']); ?>
+          <?php endif; ?>
+            <h1>Danh sách</h1>
+            <table>
+            <thead>
+                <tr>
+                    <th>Đơn hàng ID</th>
+                    <th>Người đặt</th>
+                    <th>Email</th>
+                    <th>Ngày đặt</th>
+                    <th>Trạng thái</th>
+                    <th>Tổng tiền</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($orderDetails as $detail): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($detail['DatHangID']) ?></td>
+                        <td><?= htmlspecialchars($detail['FullName']) ?> (<?= htmlspecialchars($detail['UserName']) ?>)</td>
+                        <td><?= htmlspecialchars($detail['Email']) ?></td>
+                        <td><?= htmlspecialchars($detail['NgayDat']) ?></td>
+                        <td>
+                            <form method="POST" style="display: inline;">
+                                <input type="hidden" name="DatHangID" value="<?= htmlspecialchars($detail['DatHangID']) ?>">
+                                <select name="TrangThai">
+                                    <option value="DangXuLy" <?= $detail['TrangThai'] === 'DangXuLy' ? 'selected' : '' ?>>Đang xử lý</option>
+                                    <option value="DangGiao" <?= $detail['TrangThai'] === 'DangGiao' ? 'selected' : '' ?>>Đang giao</option>
+                                    <option value="HoanThanh" <?= $detail['TrangThai'] === 'HoanThanh' ? 'selected' : '' ?>>Hoàn thành</option>
+                                    <option value="Huy" <?= $detail['TrangThai'] === 'Huy' ? 'selected' : '' ?>>Hủy</option>
+                                </select>
+                        </td>
+                        <td><?= htmlspecialchars(number_format($detail['TongTien'], 2)) ?></td>
+                        <td>
+                                <button type="submit">Cập nhật</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+                  
+                <!-- Phân trang -->
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                            <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
+                                <a class="page-link" href="?page=<?php echo $i; ?>"><?php echo $i; ?></a>
+                            </li>
+                        <?php endfor; ?>
+                    </ul>
+                </nav>
+</div>        
+
+        
           </div>
         </div>
 
@@ -632,5 +586,6 @@ $isManager = ($_SESSION['role'] === 'QuanLy');
         fillColor: "rgba(255, 165, 52, .14)",
       });
     </script>
+   
   </body>
 </html>

@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['cart'][$productId] = $quantity; // Thêm sản phẩm mới
     }
 
-    // Lưu đơn hàng vào bảng `DatHang`
+    // Kết nối với cơ sở dữ liệu
     $conn = new mysqli($host, $username, $password, $dbname);
 
     if ($conn->connect_error) {
@@ -57,21 +57,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $productPrice = $product['Gia'];
     $totalPrice = $productPrice * $quantity;
 
-    // Thêm vào bảng `DatHang`
-    $orderQuery = "
-        INSERT INTO DatHang (AccountID, TongTien) 
-        VALUES (?, ?)";
-    $stmtOrder = $conn->prepare($orderQuery);
-    $stmtOrder->bind_param("id", $accountId, $totalPrice);
+    // Kiểm tra số dư tài khoản
+    $stmtCheckBalance = $conn->prepare("SELECT SoDu FROM TaiKhoanKhachHang WHERE AccountID = ?");
+    $stmtCheckBalance->bind_param("i", $accountId);
+    $stmtCheckBalance->execute();
+    $balanceResult = $stmtCheckBalance->get_result();
+    $balanceData = $balanceResult->fetch_assoc();
 
-    if ($stmtOrder->execute()) {
-        $_SESSION['cart_message'] = "Sản phẩm đã được thêm vào giỏ hàng và lưu đơn hàng thành công!";
-    } else {
-        $_SESSION['cart_message'] = "Lỗi khi lưu đơn hàng!";
+    if ($balanceData['SoDu'] < $totalPrice) {
+        $_SESSION['cart_message'] = "Số dư không đủ để thực hiện đơn hàng!";
+        header("Location: Products.php");
+        exit();
     }
 
+    // Trừ số dư tài khoản
+    $newBalance = $balanceData['SoDu'] - $totalPrice;
+    $stmtUpdateBalance = $conn->prepare("UPDATE TaiKhoanKhachHang SET SoDu = ? WHERE AccountID = ?");
+    $stmtUpdateBalance->bind_param("di", $newBalance, $accountId);
+
+    if ($stmtUpdateBalance->execute()) {
+        // Thêm vào bảng `DatHang`
+        $orderQuery = "
+            INSERT INTO DatHang (AccountID, TongTien) 
+            VALUES (?, ?)";
+        $stmtOrder = $conn->prepare($orderQuery);
+        $stmtOrder->bind_param("id", $accountId, $totalPrice);
+
+        if ($stmtOrder->execute()) {
+            $_SESSION['cart_message'] = "Sản phẩm đã được thêm vào giỏ hàng và lưu đơn hàng thành công!";
+        } else {
+            $_SESSION['cart_message'] = "Lỗi khi lưu đơn hàng!";
+        }
+
+        $stmtOrder->close();
+    } else {
+        $_SESSION['cart_message'] = "Lỗi khi cập nhật số dư tài khoản!";
+    }
+
+    $stmtCheckBalance->close();
+    $stmtUpdateBalance->close();
     $stmt->close();
-    $stmtOrder->close();
     $conn->close();
 
     header("Location: Products.php");

@@ -2,6 +2,7 @@
 // Kết nối cơ sở dữ liệu
 require 'db_config.php';
 
+// Bắt đầu phiên nếu chưa bắt đầu
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
@@ -48,7 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare($query);
 
         if ($stmt->execute([$tenSanPham, $gia, $moTa, $danhMucID, $hinhAnh, $trangThai])) {
-            $success = "Thêm sản phẩm thành công!";
+            $_SESSION['message'] = "Thêm sản phẩm thành công!";
+            header("Location: Sanpham_Ad.php"); // Chuyển hướng người dùng về trang danh sách sản phẩm
+            exit;
         } else {
             $error = "Thêm sản phẩm thất bại!";
         }
@@ -74,8 +77,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <!-- Hiển thị thông báo thành công nếu có -->
-    <?php if ($success): ?>
-        <div class="alert alert-success"><?php echo htmlspecialchars($success); ?></div>
+    <?php if (isset($_SESSION['message'])): ?>
+        <div class="alert alert-success"><?php echo htmlspecialchars($_SESSION['message']); ?></div>
+        <?php unset($_SESSION['message']); // Xóa thông báo sau khi đã hiển thị ?>
     <?php endif; ?>
 
     <!-- Form thêm sản phẩm -->
@@ -93,16 +97,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <textarea class="form-control" id="MoTa" name="MoTa" rows="3"></textarea>
         </div>
         <div class="mb-3">
-    <label for="DanhMucID" class="form-label">Danh mục</label>
-    <select class="form-control" id="DanhMucID" name="DanhMucID" required>
-        <option value="">-- Chọn danh mục --</option>
-        <?php foreach ($danhMucs as $danhMuc): ?>
-            <option value="<?php echo $danhMuc['DanhMucID']; ?>">
-                <?php echo htmlspecialchars($danhMuc['TenDanhMuc']); ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
-</div>
+            <label for="DanhMucID" class="form-label">Danh mục</label>
+            <select class="form-control" id="DanhMucID" name="DanhMucID" required>
+                <option value="">-- Chọn danh mục --</option>
+                <?php foreach ($danhMucs as $danhMuc): ?>
+                    <option value="<?php echo $danhMuc['DanhMucID']; ?>">
+                        <?php echo htmlspecialchars($danhMuc['TenDanhMuc']); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
 
         <div class="mb-3">
             <label for="HinhAnh" class="form-label">Hình ảnh</label>
@@ -121,4 +125,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 </body>
 </html>
-
